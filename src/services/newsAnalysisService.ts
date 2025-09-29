@@ -63,8 +63,8 @@ export class NewsAnalysisService {
     relatability.overallScore = Math.round((relatability.location.score + relatability.timestamp.score + relatability.event.score) / 3);
 
     // Simulate BBC/CNN verification
-    const bbcMatch = this.simulateBBCVerification(newsContent);
-    const cnnMatch = this.simulateCNNVerification(newsContent);
+    const bbcMatch = this.simulateBBCVerification(newsContent, sourceUrl);
+    const cnnMatch = this.simulateCNNVerification(newsContent, sourceUrl);
     
     const legitimacy = {
       bbcVerification: bbcMatch,
@@ -157,29 +157,45 @@ export class NewsAnalysisService {
     return "Comprehensive context provided. Sufficient detail for thorough event verification.";
   }
 
-  private static simulateBBCVerification(text: string) {
-    // Simulate BBC API search
-    const hasRelevantKeywords = ['climate', 'government', 'economy', 'health'].some(keyword => 
+  private static simulateBBCVerification(text: string, sourceUrl?: string) {
+    // Check if source URL is from BBC
+    const isBBCSource = sourceUrl && sourceUrl.toLowerCase().includes('bbc.com');
+    
+    // Expanded keyword matching for BBC content
+    const bbcKeywords = ['climate', 'government', 'economy', 'health', 'news', 'world', 'uk', 'breaking', 'politics', 'business', 'sport', 'technology', 'science', 'entertainment'];
+    const hasRelevantKeywords = bbcKeywords.some(keyword => 
       text.toLowerCase().includes(keyword)
     );
     
+    // If it's from BBC domain, it's automatically verified
+    const found = isBBCSource || hasRelevantKeywords;
+    const similarity = found ? (isBBCSource ? 95 : Math.floor(Math.random() * 30) + 70) : 0;
+    
     return {
-      found: hasRelevantKeywords,
-      similarity: hasRelevantKeywords ? Math.floor(Math.random() * 30) + 70 : 0,
-      matchingArticles: hasRelevantKeywords ? mockBBCArticles : []
+      found,
+      similarity,
+      matchingArticles: found ? mockBBCArticles : []
     };
   }
 
-  private static simulateCNNVerification(text: string) {
-    // Simulate CNN API search
-    const hasRelevantKeywords = ['politics', 'international', 'business', 'technology'].some(keyword => 
+  private static simulateCNNVerification(text: string, sourceUrl?: string) {
+    // Check if source URL is from CNN
+    const isCNNSource = sourceUrl && sourceUrl.toLowerCase().includes('cnn.com');
+    
+    // Expanded keyword matching for CNN content
+    const cnnKeywords = ['politics', 'international', 'business', 'technology', 'news', 'world', 'breaking', 'health', 'entertainment', 'sport', 'us', 'global'];
+    const hasRelevantKeywords = cnnKeywords.some(keyword => 
       text.toLowerCase().includes(keyword)
     );
     
+    // If it's from CNN domain, it's automatically verified
+    const found = isCNNSource || hasRelevantKeywords;
+    const similarity = found ? (isCNNSource ? 92 : Math.floor(Math.random() * 25) + 65) : 0;
+    
     return {
-      found: hasRelevantKeywords,
-      similarity: hasRelevantKeywords ? Math.floor(Math.random() * 25) + 65 : 0,
-      matchingArticles: hasRelevantKeywords ? mockCNNArticles : []
+      found,
+      similarity,
+      matchingArticles: found ? mockCNNArticles : []
     };
   }
 
