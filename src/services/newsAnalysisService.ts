@@ -1,0 +1,245 @@
+import { NewsAnalysis } from "@/types/news";
+
+// Mock BBC/CNN API responses - In a real implementation, these would be actual API calls
+const mockBBCArticles = [
+  {
+    title: "Global Climate Summit Reaches Historic Agreement",
+    url: "https://www.bbc.com/news/climate-summit-agreement",
+    publishDate: "2024-01-15",
+    similarity: 85,
+    excerpt: "World leaders have reached a unprecedented agreement on climate action..."
+  }
+];
+
+const mockCNNArticles = [
+  {
+    title: "World Leaders Unite on Climate Action Plan",
+    url: "https://www.cnn.com/world/climate-agreement",
+    publishDate: "2024-01-15",
+    similarity: 78,
+    excerpt: "In a historic move, global leaders have committed to ambitious climate targets..."
+  }
+];
+
+// Simulate news verification API calls
+export class NewsAnalysisService {
+  static async analyzeNews(newsContent: string, sourceUrl?: string): Promise<NewsAnalysis> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Extract key information from the news content
+    const words = newsContent.toLowerCase().split(' ');
+    const locations = this.extractLocations(newsContent);
+    const dates = this.extractDates(newsContent);
+    const hasControversialKeywords = this.checkControversialKeywords(newsContent);
+    
+    // Simulate relatability analysis
+    const relatability = {
+      location: {
+        score: locations.length > 0 ? 75 : 30,
+        details: locations.length > 0 
+          ? `Located ${locations.length} geographical references that appear consistent with known locations.`
+          : "Limited geographical context found. Location verification challenging.",
+        extractedLocations: locations
+      },
+      timestamp: {
+        score: dates.length > 0 ? 80 : 40,
+        details: dates.length > 0
+          ? "Temporal references are consistent and plausible with current timeframe."
+          : "Limited or inconsistent temporal context found.",
+        extractedDates: dates,
+        consistency: dates.length > 0
+      },
+      event: {
+        score: hasControversialKeywords ? 45 : 70,
+        details: hasControversialKeywords
+          ? "Event contains sensational claims that require additional verification."
+          : "Event context appears plausible and consistent with known patterns.",
+        eventContext: this.generateEventContext(newsContent),
+        plausibility: hasControversialKeywords ? 45 : 75
+      },
+      overallScore: 0
+    };
+    relatability.overallScore = Math.round((relatability.location.score + relatability.timestamp.score + relatability.event.score) / 3);
+
+    // Simulate BBC/CNN verification
+    const bbcMatch = this.simulateBBCVerification(newsContent);
+    const cnnMatch = this.simulateCNNVerification(newsContent);
+    
+    const legitimacy = {
+      bbcVerification: bbcMatch,
+      cnnVerification: cnnMatch,
+      crossReference: {
+        score: (bbcMatch.found && cnnMatch.found) ? 90 : (bbcMatch.found || cnnMatch.found) ? 60 : 20,
+        details: (bbcMatch.found && cnnMatch.found) 
+          ? "Content corroborated by multiple authoritative news sources."
+          : (bbcMatch.found || cnnMatch.found)
+          ? "Content partially verified by major news outlets."
+          : "No verification found in major news databases."
+      },
+      overallScore: 0
+    };
+    legitimacy.overallScore = Math.round((
+      (bbcMatch.found ? bbcMatch.similarity : 0) + 
+      (cnnMatch.found ? cnnMatch.similarity : 0) + 
+      legitimacy.crossReference.score
+    ) / 3);
+
+    // Simulate trustworthiness analysis
+    const biasScore = this.analyzeBias(newsContent);
+    const credibilityScore = 100 - biasScore;
+    const inconsistencies = this.findInconsistencies(newsContent);
+    
+    const trustworthiness = {
+      languageAnalysis: {
+        bias: biasScore,
+        emotionalTone: this.detectEmotionalTone(newsContent),
+        credibilityScore: credibilityScore
+      },
+      factualConsistency: {
+        score: inconsistencies.length === 0 ? 85 : Math.max(20, 85 - (inconsistencies.length * 15)),
+        inconsistencies: inconsistencies
+      },
+      sourceCredibility: {
+        score: sourceUrl ? this.evaluateSourceCredibility(sourceUrl) : 50,
+        reputation: sourceUrl 
+          ? this.getSourceReputation(sourceUrl)
+          : "Source URL not provided. Credibility assessment limited."
+      },
+      overallScore: 0
+    };
+    trustworthiness.overallScore = Math.round((
+      (100 - trustworthiness.languageAnalysis.bias) + 
+      trustworthiness.factualConsistency.score + 
+      trustworthiness.sourceCredibility.score
+    ) / 3);
+
+    // Calculate overall score and verdict
+    const overallScore = Math.round((relatability.overallScore + legitimacy.overallScore + trustworthiness.overallScore) / 3);
+    
+    let overallVerdict: 'VERIFIED' | 'SUSPICIOUS' | 'FAKE' | 'NEEDS_REVIEW';
+    if (overallScore >= 75) overallVerdict = 'VERIFIED';
+    else if (overallScore >= 50) overallVerdict = 'SUSPICIOUS';
+    else if (overallScore >= 25) overallVerdict = 'NEEDS_REVIEW';
+    else overallVerdict = 'FAKE';
+
+    return {
+      relatability,
+      legitimacy,
+      trustworthiness,
+      overallScore,
+      overallVerdict
+    };
+  }
+
+  private static extractLocations(text: string): string[] {
+    const locationKeywords = ['New York', 'London', 'Paris', 'Tokyo', 'Washington', 'Moscow', 'Beijing', 'Delhi', 'Mumbai', 'Sydney'];
+    return locationKeywords.filter(location => 
+      text.toLowerCase().includes(location.toLowerCase())
+    ).slice(0, 3);
+  }
+
+  private static extractDates(text: string): string[] {
+    const dateRegex = /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}|\b\d{1,2}\/\d{1,2}\/\d{4}|\b\d{4}-\d{2}-\d{2}/gi;
+    const matches = text.match(dateRegex);
+    return matches ? matches.slice(0, 3) : [];
+  }
+
+  private static checkControversialKeywords(text: string): boolean {
+    const controversialWords = ['shocking', 'unbelievable', 'exclusive', 'breaking', 'you won\'t believe', 'doctors hate'];
+    return controversialWords.some(word => text.toLowerCase().includes(word));
+  }
+
+  private static generateEventContext(text: string): string {
+    const wordCount = text.split(' ').length;
+    if (wordCount < 50) return "Limited context provided. Event details are sparse.";
+    if (wordCount < 150) return "Moderate context provided. Some event details available for verification.";
+    return "Comprehensive context provided. Sufficient detail for thorough event verification.";
+  }
+
+  private static simulateBBCVerification(text: string) {
+    // Simulate BBC API search
+    const hasRelevantKeywords = ['climate', 'government', 'economy', 'health'].some(keyword => 
+      text.toLowerCase().includes(keyword)
+    );
+    
+    return {
+      found: hasRelevantKeywords,
+      similarity: hasRelevantKeywords ? Math.floor(Math.random() * 30) + 70 : 0,
+      matchingArticles: hasRelevantKeywords ? mockBBCArticles : []
+    };
+  }
+
+  private static simulateCNNVerification(text: string) {
+    // Simulate CNN API search
+    const hasRelevantKeywords = ['politics', 'international', 'business', 'technology'].some(keyword => 
+      text.toLowerCase().includes(keyword)
+    );
+    
+    return {
+      found: hasRelevantKeywords,
+      similarity: hasRelevantKeywords ? Math.floor(Math.random() * 25) + 65 : 0,
+      matchingArticles: hasRelevantKeywords ? mockCNNArticles : []
+    };
+  }
+
+  private static analyzeBias(text: string): number {
+    const biasIndicators = ['always', 'never', 'everyone knows', 'obviously', 'clearly', 'definitely'];
+    const biasCount = biasIndicators.filter(indicator => 
+      text.toLowerCase().includes(indicator)
+    ).length;
+    
+    return Math.min(80, biasCount * 15);
+  }
+
+  private static detectEmotionalTone(text: string): 'neutral' | 'positive' | 'negative' | 'sensational' {
+    const positiveWords = ['great', 'excellent', 'amazing', 'wonderful', 'success'];
+    const negativeWords = ['terrible', 'awful', 'disaster', 'crisis', 'failure'];
+    const sensationalWords = ['shocking', 'unbelievable', 'incredible', 'stunning'];
+    
+    const positiveCount = positiveWords.filter(word => text.toLowerCase().includes(word)).length;
+    const negativeCount = negativeWords.filter(word => text.toLowerCase().includes(word)).length;
+    const sensationalCount = sensationalWords.filter(word => text.toLowerCase().includes(word)).length;
+    
+    if (sensationalCount > 0) return 'sensational';
+    if (positiveCount > negativeCount) return 'positive';
+    if (negativeCount > positiveCount) return 'negative';
+    return 'neutral';
+  }
+
+  private static findInconsistencies(text: string): string[] {
+    const inconsistencies = [];
+    
+    // Check for contradictory statements
+    if (text.includes('said') && text.includes('denied')) {
+      inconsistencies.push('Contradictory statements detected in the same article.');
+    }
+    
+    // Check for unrealistic numbers
+    const numbers = text.match(/\d+/g);
+    if (numbers && numbers.some(num => parseInt(num) > 1000000)) {
+      inconsistencies.push('Unusually large numbers that may require verification.');
+    }
+    
+    return inconsistencies;
+  }
+
+  private static evaluateSourceCredibility(url: string): number {
+    const trustedDomains = ['bbc.com', 'cnn.com', 'reuters.com', 'ap.org', 'npr.org'];
+    const questionableDomains = ['fake-news.com', 'clickbait.net', 'unverified.info'];
+    
+    if (trustedDomains.some(domain => url.includes(domain))) return 90;
+    if (questionableDomains.some(domain => url.includes(domain))) return 10;
+    return 50; // Unknown domain
+  }
+
+  private static getSourceReputation(url: string): string {
+    const trustedDomains = ['bbc.com', 'cnn.com', 'reuters.com', 'ap.org'];
+    
+    if (trustedDomains.some(domain => url.includes(domain))) {
+      return "Source is from a well-established, reputable news organization with strong editorial standards.";
+    }
+    
+    return "Source credibility requires further investigation. Domain not recognized as major news outlet.";
+  }
+}
