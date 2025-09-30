@@ -24,6 +24,12 @@ const mockCNNArticles = [
 // Simulate news verification API calls
 export class NewsAnalysisService {
   static async analyzeNews(newsContent: string, sourceUrl?: string): Promise<NewsAnalysis> {
+    // Debug logging
+    console.log('Analyzing news with URL:', sourceUrl);
+    console.log('URL type:', typeof sourceUrl);
+    console.log('URL includes bbc.com?', sourceUrl?.toLowerCase().includes('bbc.com'));
+    console.log('URL includes cnn.com?', sourceUrl?.toLowerCase().includes('cnn.com'));
+    
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 3000));
 
@@ -160,6 +166,7 @@ export class NewsAnalysisService {
   private static simulateBBCVerification(text: string, sourceUrl?: string) {
     // Check if source URL is from BBC
     const isBBCSource = sourceUrl && sourceUrl.toLowerCase().includes('bbc.com');
+    console.log('BBC Verification - sourceUrl:', sourceUrl, 'isBBCSource:', isBBCSource);
     
     // Expanded keyword matching for BBC content
     const bbcKeywords = ['climate', 'government', 'economy', 'health', 'news', 'world', 'uk', 'breaking', 'politics', 'business', 'sport', 'technology', 'science', 'entertainment'];
@@ -181,6 +188,7 @@ export class NewsAnalysisService {
   private static simulateCNNVerification(text: string, sourceUrl?: string) {
     // Check if source URL is from CNN
     const isCNNSource = sourceUrl && sourceUrl.toLowerCase().includes('cnn.com');
+    console.log('CNN Verification - sourceUrl:', sourceUrl, 'isCNNSource:', isCNNSource);
     
     // Expanded keyword matching for CNN content
     const cnnKeywords = ['politics', 'international', 'business', 'technology', 'news', 'world', 'breaking', 'health', 'entertainment', 'sport', 'us', 'global'];
