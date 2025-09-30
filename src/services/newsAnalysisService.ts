@@ -1,25 +1,23 @@
 import { NewsAnalysis } from "@/types/news";
 
-// Mock BBC/CNN API responses - In a real implementation, these would be actual API calls
-const mockBBCArticles = [
-  {
-    title: "Global Climate Summit Reaches Historic Agreement",
-    url: "https://www.bbc.com/news/climate-summit-agreement",
-    publishDate: "2024-01-15",
-    similarity: 85,
-    excerpt: "World leaders have reached a unprecedented agreement on climate action..."
-  }
-];
-
-const mockCNNArticles = [
-  {
-    title: "World Leaders Unite on Climate Action Plan",
-    url: "https://www.cnn.com/world/climate-agreement",
-    publishDate: "2024-01-15",
-    similarity: 78,
-    excerpt: "In a historic move, global leaders have committed to ambitious climate targets..."
-  }
-];
+// Helper function to generate mock matching articles based on content
+const generateMockArticles = (text: string, source: 'BBC' | 'CNN', sourceUrl?: string) => {
+  // Extract key topics from the text
+  const firstSentence = text.split('.')[0] || text.substring(0, 100);
+  const words = firstSentence.split(' ').filter(w => w.length > 4);
+  const title = words.slice(0, 8).join(' ') + (words.length > 8 ? '...' : '');
+  
+  const baseUrl = source === 'BBC' ? 'https://www.bbc.com/news/' : 'https://www.cnn.com/';
+  const urlSlug = words.slice(0, 3).join('-').toLowerCase().replace(/[^a-z0-9-]/g, '');
+  
+  return [{
+    title: title || `${source} Report on Recent Events`,
+    url: sourceUrl || `${baseUrl}${urlSlug}`,
+    publishDate: new Date().toISOString().split('T')[0],
+    similarity: sourceUrl?.includes(source.toLowerCase() + '.com') ? 95 : 85,
+    excerpt: text.substring(0, 150) + (text.length > 150 ? '...' : '')
+  }];
+};
 
 // Simulate news verification API calls
 export class NewsAnalysisService {
@@ -181,7 +179,7 @@ export class NewsAnalysisService {
     return {
       found,
       similarity,
-      matchingArticles: found ? mockBBCArticles : []
+      matchingArticles: found ? generateMockArticles(text, 'BBC', sourceUrl) : []
     };
   }
 
@@ -203,7 +201,7 @@ export class NewsAnalysisService {
     return {
       found,
       similarity,
-      matchingArticles: found ? mockCNNArticles : []
+      matchingArticles: found ? generateMockArticles(text, 'CNN', sourceUrl) : []
     };
   }
 
