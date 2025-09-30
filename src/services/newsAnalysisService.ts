@@ -70,24 +70,44 @@ export class NewsAnalysisService {
     const bbcMatch = this.simulateBBCVerification(newsContent, sourceUrl);
     const cnnMatch = this.simulateCNNVerification(newsContent, sourceUrl);
     
+    // Check if source is from a trusted domain
+    const isTrustedSource = sourceUrl && (
+      sourceUrl.toLowerCase().includes('bbc.com') ||
+      sourceUrl.toLowerCase().includes('cnn.com')
+    );
+    
     const legitimacy = {
       bbcVerification: bbcMatch,
       cnnVerification: cnnMatch,
       crossReference: {
-        score: (bbcMatch.found && cnnMatch.found) ? 90 : (bbcMatch.found || cnnMatch.found) ? 60 : 20,
+        score: (bbcMatch.found && cnnMatch.found) ? 95 : 
+               (isTrustedSource && (bbcMatch.found || cnnMatch.found)) ? 90 :
+               (bbcMatch.found || cnnMatch.found) ? 70 : 20,
         details: (bbcMatch.found && cnnMatch.found) 
           ? "Content corroborated by multiple authoritative news sources."
+          : (isTrustedSource && (bbcMatch.found || cnnMatch.found))
+          ? "Content verified by a trusted authoritative news source."
           : (bbcMatch.found || cnnMatch.found)
           ? "Content partially verified by major news outlets."
           : "No verification found in major news databases."
       },
       overallScore: 0
     };
-    legitimacy.overallScore = Math.round((
-      (bbcMatch.found ? bbcMatch.similarity : 0) + 
-      (cnnMatch.found ? cnnMatch.similarity : 0) + 
-      legitimacy.crossReference.score
-    ) / 3);
+    
+    // Calculate legitimacy score - give more weight to trusted sources
+    if (isTrustedSource && (bbcMatch.found || cnnMatch.found)) {
+      legitimacy.overallScore = Math.round((
+        (bbcMatch.found ? bbcMatch.similarity : 0) + 
+        (cnnMatch.found ? cnnMatch.similarity : 0) + 
+        legitimacy.crossReference.score
+      ) / 2); // Average of the matching source and cross-reference (higher weight)
+    } else {
+      legitimacy.overallScore = Math.round((
+        (bbcMatch.found ? bbcMatch.similarity : 0) + 
+        (cnnMatch.found ? cnnMatch.similarity : 0) + 
+        legitimacy.crossReference.score
+      ) / 3);
+    }
 
     // Simulate trustworthiness analysis
     const biasScore = this.analyzeBias(newsContent);
