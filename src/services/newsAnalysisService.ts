@@ -82,31 +82,42 @@ export class NewsAnalysisService {
       crossReference: {
         score: (bbcMatch.found && cnnMatch.found) ? 95 : 
                (isTrustedSource && (bbcMatch.found || cnnMatch.found)) ? 90 :
-               (bbcMatch.found || cnnMatch.found) ? 70 : 20,
+               (bbcMatch.found || cnnMatch.found) ? 85 : 20,
         details: (bbcMatch.found && cnnMatch.found) 
           ? "Content corroborated by multiple authoritative news sources."
           : (isTrustedSource && (bbcMatch.found || cnnMatch.found))
           ? "Content verified by a trusted authoritative news source."
           : (bbcMatch.found || cnnMatch.found)
-          ? "Content partially verified by major news outlets."
+          ? "Content matches patterns found in major news outlets."
           : "No verification found in major news databases."
       },
       overallScore: 0
     };
     
-    // Calculate legitimacy score - give more weight to trusted sources
+    // Calculate legitimacy score - give higher scores to keyword matches even without URL
     if (isTrustedSource && (bbcMatch.found || cnnMatch.found)) {
+      // Trusted source with URL gets highest score
       legitimacy.overallScore = Math.round((
         (bbcMatch.found ? bbcMatch.similarity : 0) + 
         (cnnMatch.found ? cnnMatch.similarity : 0) + 
         legitimacy.crossReference.score
-      ) / 2); // Average of the matching source and cross-reference (higher weight)
-    } else {
+      ) / 2);
+    } else if (bbcMatch.found && cnnMatch.found) {
+      // Both sources match keywords (no URL) - still high score
       legitimacy.overallScore = Math.round((
-        (bbcMatch.found ? bbcMatch.similarity : 0) + 
-        (cnnMatch.found ? cnnMatch.similarity : 0) + 
+        bbcMatch.similarity + 
+        cnnMatch.similarity + 
         legitimacy.crossReference.score
       ) / 3);
+    } else if (bbcMatch.found || cnnMatch.found) {
+      // One source matches keywords (no URL) - good score
+      legitimacy.overallScore = Math.round((
+        (bbcMatch.found ? bbcMatch.similarity : cnnMatch.similarity) + 
+        legitimacy.crossReference.score
+      ) / 2);
+    } else {
+      // No matches at all
+      legitimacy.overallScore = 20;
     }
 
     // Simulate trustworthiness analysis
