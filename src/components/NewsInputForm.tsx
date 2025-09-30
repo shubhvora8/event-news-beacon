@@ -17,7 +17,8 @@ export const NewsInputForm = ({ onAnalyze, isLoading }: NewsInputFormProps) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newsContent.trim()) {
-      onAnalyze(newsContent.trim(), sourceUrl.trim() || undefined);
+      const trimmedUrl = sourceUrl.trim();
+      onAnalyze(newsContent.trim(), trimmedUrl ? trimmedUrl : undefined);
     }
   };
 

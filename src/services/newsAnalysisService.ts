@@ -22,12 +22,6 @@ const generateMockArticles = (text: string, source: 'BBC' | 'CNN', sourceUrl?: s
 // Simulate news verification API calls
 export class NewsAnalysisService {
   static async analyzeNews(newsContent: string, sourceUrl?: string): Promise<NewsAnalysis> {
-    // Debug logging
-    console.log('Analyzing news with URL:', sourceUrl);
-    console.log('URL type:', typeof sourceUrl);
-    console.log('URL includes bbc.com?', sourceUrl?.toLowerCase().includes('bbc.com'));
-    console.log('URL includes cnn.com?', sourceUrl?.toLowerCase().includes('cnn.com'));
-    
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 3000));
 
@@ -196,7 +190,6 @@ export class NewsAnalysisService {
     // Check if source URL is from BBC
     const isBBCSource = sourceUrl && sourceUrl.toLowerCase().includes('bbc.com');
     const isCNNSource = sourceUrl && sourceUrl.toLowerCase().includes('cnn.com');
-    console.log('BBC Verification - sourceUrl:', sourceUrl, 'isBBCSource:', isBBCSource);
     
     // If URL is specifically from CNN, don't verify in BBC
     if (isCNNSource) {
@@ -228,7 +221,6 @@ export class NewsAnalysisService {
     // Check if source URL is from CNN
     const isCNNSource = sourceUrl && sourceUrl.toLowerCase().includes('cnn.com');
     const isBBCSource = sourceUrl && sourceUrl.toLowerCase().includes('bbc.com');
-    console.log('CNN Verification - sourceUrl:', sourceUrl, 'isCNNSource:', isCNNSource);
     
     // If URL is specifically from BBC, don't verify in CNN
     if (isBBCSource) {
