@@ -164,11 +164,21 @@ export class NewsAnalysisService {
   private static simulateBBCVerification(text: string, sourceUrl?: string) {
     // Check if source URL is from BBC
     const isBBCSource = sourceUrl && sourceUrl.toLowerCase().includes('bbc.com');
+    const isCNNSource = sourceUrl && sourceUrl.toLowerCase().includes('cnn.com');
     console.log('BBC Verification - sourceUrl:', sourceUrl, 'isBBCSource:', isBBCSource);
     
-    // Expanded keyword matching for BBC content
+    // If URL is specifically from CNN, don't verify in BBC
+    if (isCNNSource) {
+      return {
+        found: false,
+        similarity: 0,
+        matchingArticles: []
+      };
+    }
+    
+    // Expanded keyword matching for BBC content (only if no specific source URL)
     const bbcKeywords = ['climate', 'government', 'economy', 'health', 'news', 'world', 'uk', 'breaking', 'politics', 'business', 'sport', 'technology', 'science', 'entertainment'];
-    const hasRelevantKeywords = bbcKeywords.some(keyword => 
+    const hasRelevantKeywords = !sourceUrl && bbcKeywords.some(keyword => 
       text.toLowerCase().includes(keyword)
     );
     
@@ -186,11 +196,21 @@ export class NewsAnalysisService {
   private static simulateCNNVerification(text: string, sourceUrl?: string) {
     // Check if source URL is from CNN
     const isCNNSource = sourceUrl && sourceUrl.toLowerCase().includes('cnn.com');
+    const isBBCSource = sourceUrl && sourceUrl.toLowerCase().includes('bbc.com');
     console.log('CNN Verification - sourceUrl:', sourceUrl, 'isCNNSource:', isCNNSource);
     
-    // Expanded keyword matching for CNN content
+    // If URL is specifically from BBC, don't verify in CNN
+    if (isBBCSource) {
+      return {
+        found: false,
+        similarity: 0,
+        matchingArticles: []
+      };
+    }
+    
+    // Expanded keyword matching for CNN content (only if no specific source URL)
     const cnnKeywords = ['politics', 'international', 'business', 'technology', 'news', 'world', 'breaking', 'health', 'entertainment', 'sport', 'us', 'global'];
-    const hasRelevantKeywords = cnnKeywords.some(keyword => 
+    const hasRelevantKeywords = !sourceUrl && cnnKeywords.some(keyword => 
       text.toLowerCase().includes(keyword)
     );
     
