@@ -88,7 +88,7 @@ export class NewsAnalysisService {
       overallScore: 0
     };
     
-    // Calculate legitimacy score - give higher scores to keyword matches even without URL
+    // Calculate legitimacy score - prioritize keyword matches
     if (isTrustedSource && (bbcMatch.found || cnnMatch.found)) {
       // Trusted source with URL gets highest score
       legitimacy.overallScore = Math.round((
@@ -97,22 +97,32 @@ export class NewsAnalysisService {
         legitimacy.crossReference.score
       ) / 2);
     } else if (bbcMatch.found && cnnMatch.found) {
-      // Both sources match keywords (no URL) - still high score
+      // Both sources match keywords - high score (weighted toward matches)
       legitimacy.overallScore = Math.round((
-        bbcMatch.similarity + 
-        cnnMatch.similarity + 
-        legitimacy.crossReference.score
-      ) / 3);
+        bbcMatch.similarity * 0.4 + 
+        cnnMatch.similarity * 0.4 + 
+        legitimacy.crossReference.score * 0.2
+      ));
     } else if (bbcMatch.found || cnnMatch.found) {
-      // One source matches keywords (no URL) - good score
+      // One source matches keywords - good score
+      const matchSimilarity = bbcMatch.found ? bbcMatch.similarity : cnnMatch.similarity;
       legitimacy.overallScore = Math.round((
-        (bbcMatch.found ? bbcMatch.similarity : cnnMatch.similarity) + 
-        legitimacy.crossReference.score
-      ) / 2);
+        matchSimilarity * 0.6 + 
+        legitimacy.crossReference.score * 0.4
+      ));
     } else {
       // No matches at all
       legitimacy.overallScore = 20;
     }
+    
+    console.log('Legitimacy Score:', {
+      overallScore: legitimacy.overallScore,
+      bbcFound: bbcMatch.found,
+      cnnFound: cnnMatch.found,
+      bbcSim: bbcMatch.similarity,
+      cnnSim: cnnMatch.similarity,
+      crossRef: legitimacy.crossReference.score
+    });
 
     // Simulate trustworthiness analysis
     const biasScore = this.analyzeBias(newsContent);
@@ -187,28 +197,32 @@ export class NewsAnalysisService {
   }
 
   private static simulateBBCVerification(text: string, sourceUrl?: string) {
-    // Check if source URL is from BBC
+    const lowerText = text.toLowerCase();
     const isBBCSource = sourceUrl && sourceUrl.toLowerCase().includes('bbc.com');
     const isCNNSource = sourceUrl && sourceUrl.toLowerCase().includes('cnn.com');
     
     // If URL is specifically from CNN, don't verify in BBC
     if (isCNNSource) {
-      return {
-        found: false,
-        similarity: 0,
-        matchingArticles: []
-      };
+      return { found: false, similarity: 0, matchingArticles: [] };
     }
     
-    // Keyword matching for BBC content (works with or without URL)
-    const bbcKeywords = ['climate', 'government', 'economy', 'health', 'news', 'world', 'uk', 'breaking', 'politics', 'business', 'sport', 'technology', 'science', 'entertainment'];
-    const hasRelevantKeywords = bbcKeywords.some(keyword => 
-      text.toLowerCase().includes(keyword)
-    );
+    // Comprehensive BBC-style keywords
+    const bbcKeywords = [
+      'climate', 'government', 'economy', 'health', 'news', 'world', 'uk', 'britain',
+      'breaking', 'politics', 'business', 'sport', 'technology', 'science', 'entertainment',
+      'minister', 'parliament', 'election', 'minister', 'royal', 'brexit', 'europe',
+      'report', 'study', 'research', 'crisis', 'pandemic', 'covid', 'vaccine'
+    ];
+    
+    const matchCount = bbcKeywords.filter(keyword => lowerText.includes(keyword)).length;
+    const hasRelevantKeywords = matchCount > 0;
     
     // If it's from BBC domain or has BBC-style keywords, it's verified
     const found = isBBCSource || hasRelevantKeywords;
-    const similarity = found ? (isBBCSource ? 95 : Math.floor(Math.random() * 30) + 70) : 0;
+    // Higher similarity for more keyword matches
+    const similarity = found ? (isBBCSource ? 95 : Math.min(95, 70 + (matchCount * 5))) : 0;
+    
+    console.log('BBC Verification:', { found, similarity, matchCount, hasUrl: !!sourceUrl });
     
     return {
       found,
@@ -218,28 +232,32 @@ export class NewsAnalysisService {
   }
 
   private static simulateCNNVerification(text: string, sourceUrl?: string) {
-    // Check if source URL is from CNN
+    const lowerText = text.toLowerCase();
     const isCNNSource = sourceUrl && sourceUrl.toLowerCase().includes('cnn.com');
     const isBBCSource = sourceUrl && sourceUrl.toLowerCase().includes('bbc.com');
     
     // If URL is specifically from BBC, don't verify in CNN
     if (isBBCSource) {
-      return {
-        found: false,
-        similarity: 0,
-        matchingArticles: []
-      };
+      return { found: false, similarity: 0, matchingArticles: [] };
     }
     
-    // Keyword matching for CNN content (works with or without URL)
-    const cnnKeywords = ['politics', 'international', 'business', 'technology', 'news', 'world', 'breaking', 'health', 'entertainment', 'sport', 'us', 'global'];
-    const hasRelevantKeywords = cnnKeywords.some(keyword => 
-      text.toLowerCase().includes(keyword)
-    );
+    // Comprehensive CNN-style keywords
+    const cnnKeywords = [
+      'politics', 'international', 'business', 'technology', 'news', 'world', 'breaking',
+      'health', 'entertainment', 'sport', 'us', 'global', 'america', 'president',
+      'congress', 'senate', 'election', 'washington', 'report', 'crisis', 'pandemic',
+      'economy', 'market', 'investigation', 'officials', 'government'
+    ];
+    
+    const matchCount = cnnKeywords.filter(keyword => lowerText.includes(keyword)).length;
+    const hasRelevantKeywords = matchCount > 0;
     
     // If it's from CNN domain or has CNN-style keywords, it's verified
     const found = isCNNSource || hasRelevantKeywords;
-    const similarity = found ? (isCNNSource ? 92 : Math.floor(Math.random() * 25) + 65) : 0;
+    // Higher similarity for more keyword matches
+    const similarity = found ? (isCNNSource ? 92 : Math.min(92, 65 + (matchCount * 5))) : 0;
+    
+    console.log('CNN Verification:', { found, similarity, matchCount, hasUrl: !!sourceUrl });
     
     return {
       found,
