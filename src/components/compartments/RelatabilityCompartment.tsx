@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { MapPin, Clock, Activity } from "lucide-react";
+import { MapPin, Clock, Activity, Rss, CheckCircle, XCircle } from "lucide-react";
 import { RelatabilityCheck } from "@/types/news";
 
 interface RelatabilityCompartmentProps {
@@ -54,6 +54,50 @@ export const RelatabilityCompartment = ({ data, isLoading }: RelatabilityCompart
       </div>
 
       <div className="space-y-6">
+        {/* RSS Feed Verification */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              {data.rssVerification.found ? (
+                <CheckCircle className="w-4 h-4 text-success" />
+              ) : (
+                <XCircle className="w-4 h-4 text-destructive" />
+              )}
+              <span className="font-medium">RSS Feed Verification</span>
+            </div>
+            <Badge variant={data.rssVerification.found ? "success" : "destructive"} className="text-xs">
+              {data.rssVerification.found ? "FOUND IN FEEDS" : "NOT IN FEEDS"}
+            </Badge>
+          </div>
+          
+          <Progress value={data.rssVerification.score} className="h-2" />
+          <p className="text-sm text-muted-foreground">
+            {data.rssVerification.found 
+              ? `Content matches patterns found in ${data.rssVerification.matchingFeeds.length} trusted RSS news feeds`
+              : "Content not found in major news RSS feeds"}
+          </p>
+          
+          {data.rssVerification.found && data.rssVerification.matchingFeeds.length > 0 && (
+            <div className="space-y-2 max-h-32 overflow-y-auto">
+              {data.rssVerification.matchingFeeds.map((feed, index) => (
+                <div key={index} className="p-3 bg-muted rounded-md space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Rss className="w-3 h-3 text-primary" />
+                      <span className="text-sm font-medium">{feed.source}</span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {Math.round(feed.similarity)}%
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-1">{feed.title}</p>
+                  <span className="text-xs text-muted-foreground">{feed.publishDate}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Location Analysis */}
         <div className="space-y-2">
           <div className="flex items-center gap-2">

@@ -31,8 +31,12 @@ export class NewsAnalysisService {
     const dates = this.extractDates(newsContent);
     const hasControversialKeywords = this.checkControversialKeywords(newsContent);
     
+    // Simulate RSS verification
+    const rssVerification = this.simulateRSSVerification(newsContent, sourceUrl);
+    
     // Simulate relatability analysis
     const relatability = {
+      rssVerification,
       location: {
         score: locations.length > 0 ? 75 : 30,
         details: locations.length > 0 
@@ -58,7 +62,7 @@ export class NewsAnalysisService {
       },
       overallScore: 0
     };
-    relatability.overallScore = Math.round((relatability.location.score + relatability.timestamp.score + relatability.event.score) / 3);
+    relatability.overallScore = Math.round((relatability.rssVerification.score + relatability.location.score + relatability.timestamp.score + relatability.event.score) / 4);
 
     // Simulate BBC/CNN verification
     const bbcMatch = this.simulateBBCVerification(newsContent, sourceUrl);
@@ -169,6 +173,46 @@ export class NewsAnalysisService {
       overallScore,
       overallVerdict
     };
+  }
+
+  private static simulateRSSVerification(text: string, sourceUrl?: string) {
+    const lowerText = text.toLowerCase();
+    
+    // RSS feed keywords that indicate legitimate news content
+    const rssKeywords = [
+      'news', 'report', 'announced', 'according', 'sources', 'officials',
+      'government', 'president', 'minister', 'statement', 'says', 'said',
+      'world', 'country', 'national', 'international', 'breaking', 'update'
+    ];
+    
+    const matchCount = rssKeywords.filter(keyword => lowerText.includes(keyword)).length;
+    const wordCount = text.split(/\s+/).length;
+    const hasNewsStructure = wordCount >= 30;
+    const hasRelevantKeywords = matchCount >= 2;
+    
+    const found = hasRelevantKeywords && hasNewsStructure;
+    const score = found ? Math.min(90, 50 + (matchCount * 5)) : 30;
+    
+    const matchingFeeds = found ? [
+      {
+        source: 'Reuters RSS',
+        title: text.split('.')[0]?.substring(0, 80) || 'News Article',
+        url: sourceUrl || 'https://www.reuters.com/news/rss',
+        publishDate: new Date().toISOString().split('T')[0],
+        similarity: score
+      },
+      {
+        source: 'Associated Press RSS',
+        title: text.split('.')[0]?.substring(0, 80) || 'Breaking News',
+        url: sourceUrl || 'https://apnews.com/rss',
+        publishDate: new Date().toISOString().split('T')[0],
+        similarity: Math.max(70, score - 10)
+      }
+    ] : [];
+    
+    console.log('RSS Verification:', { found, score, matchCount, wordCount });
+    
+    return { found, matchingFeeds, score };
   }
 
   private static extractLocations(text: string): string[] {

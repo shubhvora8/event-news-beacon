@@ -7,6 +7,11 @@ export interface NewsAnalysis {
 }
 
 export interface RelatabilityCheck {
+  rssVerification: {
+    found: boolean;
+    matchingFeeds: RSSFeed[];
+    score: number;
+  };
   location: {
     score: number;
     details: string;
@@ -25,6 +30,14 @@ export interface RelatabilityCheck {
     plausibility: number;
   };
   overallScore: number;
+}
+
+export interface RSSFeed {
+  source: string;
+  title: string;
+  url: string;
+  publishDate: string;
+  similarity: number;
 }
 
 export interface LegitimacyCheck {
