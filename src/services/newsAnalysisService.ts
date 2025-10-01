@@ -200,13 +200,13 @@ export class NewsAnalysisService {
       };
     }
     
-    // Expanded keyword matching for BBC content (only if no specific source URL)
+    // Keyword matching for BBC content (works with or without URL)
     const bbcKeywords = ['climate', 'government', 'economy', 'health', 'news', 'world', 'uk', 'breaking', 'politics', 'business', 'sport', 'technology', 'science', 'entertainment'];
-    const hasRelevantKeywords = !sourceUrl && bbcKeywords.some(keyword => 
+    const hasRelevantKeywords = bbcKeywords.some(keyword => 
       text.toLowerCase().includes(keyword)
     );
     
-    // If it's from BBC domain, it's automatically verified
+    // If it's from BBC domain or has BBC-style keywords, it's verified
     const found = isBBCSource || hasRelevantKeywords;
     const similarity = found ? (isBBCSource ? 95 : Math.floor(Math.random() * 30) + 70) : 0;
     
@@ -231,13 +231,13 @@ export class NewsAnalysisService {
       };
     }
     
-    // Expanded keyword matching for CNN content (only if no specific source URL)
+    // Keyword matching for CNN content (works with or without URL)
     const cnnKeywords = ['politics', 'international', 'business', 'technology', 'news', 'world', 'breaking', 'health', 'entertainment', 'sport', 'us', 'global'];
-    const hasRelevantKeywords = !sourceUrl && cnnKeywords.some(keyword => 
+    const hasRelevantKeywords = cnnKeywords.some(keyword => 
       text.toLowerCase().includes(keyword)
     );
     
-    // If it's from CNN domain, it's automatically verified
+    // If it's from CNN domain or has CNN-style keywords, it's verified
     const found = isCNNSource || hasRelevantKeywords;
     const similarity = found ? (isCNNSource ? 92 : Math.floor(Math.random() * 25) + 65) : 0;
     
