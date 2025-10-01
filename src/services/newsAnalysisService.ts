@@ -206,23 +206,63 @@ export class NewsAnalysisService {
       return { found: false, similarity: 0, matchingArticles: [] };
     }
     
-    // Comprehensive BBC-style keywords
+    // Extensive news-related keywords that appear in legitimate articles
     const bbcKeywords = [
-      'climate', 'government', 'economy', 'health', 'news', 'world', 'uk', 'britain',
-      'breaking', 'politics', 'business', 'sport', 'technology', 'science', 'entertainment',
-      'minister', 'parliament', 'election', 'minister', 'royal', 'brexit', 'europe',
-      'report', 'study', 'research', 'crisis', 'pandemic', 'covid', 'vaccine'
+      // BBC-specific
+      'bbc', 'british broadcasting', 'uk', 'britain', 'england', 'scotland', 'wales', 'london',
+      // News/reporting terms
+      'news', 'report', 'reports', 'reported', 'reporting', 'journalist', 'reporter', 'correspondent',
+      'announced', 'statement', 'says', 'said', 'told', 'according', 'sources', 'officials',
+      // Politics & Government
+      'government', 'minister', 'ministers', 'parliament', 'prime minister', 'politics', 'political',
+      'election', 'vote', 'voting', 'policy', 'legislation', 'law', 'president', 'congress', 'senate',
+      // World & International
+      'world', 'international', 'global', 'country', 'countries', 'nation', 'national', 'foreign',
+      'europe', 'european', 'asia', 'africa', 'america', 'american', 'china', 'russia', 'india',
+      // Business & Economy
+      'economy', 'economic', 'business', 'market', 'markets', 'financial', 'bank', 'company', 'companies',
+      'trade', 'industry', 'investment', 'stock', 'shares', 'profit', 'growth', 'inflation',
+      // Health & Science
+      'health', 'hospital', 'medical', 'doctor', 'doctors', 'patient', 'patients', 'disease', 'treatment',
+      'study', 'research', 'scientist', 'scientists', 'university', 'professor', 'science', 'scientific',
+      'covid', 'pandemic', 'virus', 'vaccine', 'vaccination',
+      // Technology
+      'technology', 'tech', 'digital', 'internet', 'online', 'cyber', 'computer', 'software', 'app',
+      // Climate & Environment
+      'climate', 'environment', 'environmental', 'weather', 'temperature', 'carbon', 'emissions', 'energy',
+      // Society & Culture
+      'society', 'social', 'community', 'public', 'people', 'population', 'family', 'children',
+      'education', 'school', 'university', 'student', 'students', 'teacher', 'teachers',
+      'culture', 'cultural', 'art', 'music', 'film', 'entertainment', 'sport', 'sports',
+      // Events & Issues
+      'crisis', 'issue', 'issues', 'problem', 'challenge', 'situation', 'incident', 'event',
+      'attack', 'conflict', 'war', 'peace', 'security', 'police', 'court', 'trial', 'investigation',
+      // Time references
+      'today', 'yesterday', 'week', 'month', 'year', 'recently', 'latest', 'breaking', 'update'
     ];
     
     const matchCount = bbcKeywords.filter(keyword => lowerText.includes(keyword)).length;
-    const hasRelevantKeywords = matchCount > 0;
+    const wordCount = text.split(/\s+/).length;
     
-    // If it's from BBC domain or has BBC-style keywords, it's verified
-    const found = isBBCSource || hasRelevantKeywords;
-    // Higher similarity for more keyword matches
-    const similarity = found ? (isBBCSource ? 95 : Math.min(95, 70 + (matchCount * 5))) : 0;
+    // Consider it news-like if: has keywords AND reasonable length (>20 words)
+    const hasRelevantKeywords = matchCount >= 3;
+    const hasNewsStructure = wordCount >= 20;
+    const looksLikeNews = hasRelevantKeywords && hasNewsStructure;
     
-    console.log('BBC Verification:', { found, similarity, matchCount, hasUrl: !!sourceUrl });
+    // If it's from BBC domain or looks like legitimate news, it's verified
+    const found = isBBCSource || looksLikeNews;
+    // Higher similarity based on keyword density
+    const keywordDensity = wordCount > 0 ? (matchCount / wordCount) * 100 : 0;
+    const similarity = found ? (isBBCSource ? 95 : Math.min(92, 60 + Math.min(30, keywordDensity * 3))) : 0;
+    
+    console.log('BBC Verification:', { 
+      found, 
+      similarity, 
+      matchCount, 
+      wordCount,
+      keywordDensity: keywordDensity.toFixed(2),
+      hasUrl: !!sourceUrl 
+    });
     
     return {
       found,
@@ -241,23 +281,63 @@ export class NewsAnalysisService {
       return { found: false, similarity: 0, matchingArticles: [] };
     }
     
-    // Comprehensive CNN-style keywords
+    // Extensive news-related keywords that appear in legitimate articles
     const cnnKeywords = [
-      'politics', 'international', 'business', 'technology', 'news', 'world', 'breaking',
-      'health', 'entertainment', 'sport', 'us', 'global', 'america', 'president',
-      'congress', 'senate', 'election', 'washington', 'report', 'crisis', 'pandemic',
-      'economy', 'market', 'investigation', 'officials', 'government'
+      // CNN-specific
+      'cnn', 'cable news', 'us', 'usa', 'america', 'american', 'washington', 'white house',
+      // News/reporting terms
+      'news', 'report', 'reports', 'reported', 'reporting', 'journalist', 'reporter', 'correspondent',
+      'announced', 'statement', 'says', 'said', 'told', 'according', 'sources', 'officials',
+      // Politics & Government
+      'politics', 'political', 'president', 'congress', 'senate', 'house', 'representative', 'senator',
+      'government', 'administration', 'federal', 'state', 'election', 'vote', 'voting', 'campaign',
+      'policy', 'legislation', 'law', 'bill', 'democrat', 'republican',
+      // International
+      'world', 'international', 'global', 'foreign', 'country', 'countries', 'nation', 'national',
+      'europe', 'european', 'asia', 'africa', 'middle east', 'china', 'russia', 'ukraine', 'israel',
+      // Business & Economy
+      'business', 'economy', 'economic', 'market', 'markets', 'financial', 'wall street', 'stock',
+      'company', 'companies', 'corporate', 'trade', 'industry', 'investment', 'bank', 'banking',
+      // Health & Science
+      'health', 'healthcare', 'medical', 'hospital', 'doctor', 'doctors', 'patient', 'patients',
+      'cdc', 'fda', 'study', 'research', 'scientist', 'science', 'scientific', 'university',
+      'covid', 'pandemic', 'coronavirus', 'virus', 'vaccine', 'vaccination', 'outbreak',
+      // Technology
+      'technology', 'tech', 'digital', 'internet', 'online', 'cyber', 'computer', 'ai', 'artificial intelligence',
+      'social media', 'facebook', 'twitter', 'google', 'apple', 'microsoft', 'amazon',
+      // Climate & Environment
+      'climate', 'weather', 'storm', 'hurricane', 'environment', 'environmental', 'temperature', 'warming',
+      // Crime & Justice
+      'crime', 'criminal', 'police', 'arrest', 'arrested', 'court', 'trial', 'judge', 'jury', 'justice',
+      'investigation', 'fbi', 'department', 'charges', 'lawsuit', 'legal',
+      // Breaking news terms
+      'breaking', 'developing', 'update', 'latest', 'live', 'happening', 'now', 'alert',
+      // Time references
+      'today', 'yesterday', 'tonight', 'this week', 'this month', 'recently', 'year', 'years'
     ];
     
     const matchCount = cnnKeywords.filter(keyword => lowerText.includes(keyword)).length;
-    const hasRelevantKeywords = matchCount > 0;
+    const wordCount = text.split(/\s+/).length;
     
-    // If it's from CNN domain or has CNN-style keywords, it's verified
-    const found = isCNNSource || hasRelevantKeywords;
-    // Higher similarity for more keyword matches
-    const similarity = found ? (isCNNSource ? 92 : Math.min(92, 65 + (matchCount * 5))) : 0;
+    // Consider it news-like if: has keywords AND reasonable length (>20 words)
+    const hasRelevantKeywords = matchCount >= 3;
+    const hasNewsStructure = wordCount >= 20;
+    const looksLikeNews = hasRelevantKeywords && hasNewsStructure;
     
-    console.log('CNN Verification:', { found, similarity, matchCount, hasUrl: !!sourceUrl });
+    // If it's from CNN domain or looks like legitimate news, it's verified
+    const found = isCNNSource || looksLikeNews;
+    // Higher similarity based on keyword density
+    const keywordDensity = wordCount > 0 ? (matchCount / wordCount) * 100 : 0;
+    const similarity = found ? (isCNNSource ? 92 : Math.min(90, 55 + Math.min(30, keywordDensity * 3))) : 0;
+    
+    console.log('CNN Verification:', { 
+      found, 
+      similarity, 
+      matchCount, 
+      wordCount,
+      keywordDensity: keywordDensity.toFixed(2),
+      hasUrl: !!sourceUrl 
+    });
     
     return {
       found,
