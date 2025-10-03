@@ -47,55 +47,93 @@ Deno.serve(async (req) => {
       throw new Error('NEWSAPI_KEY not configured');
     }
 
-    // Extract key terms from the news content for searching
-    const extractKeywords = (text: string): string => {
-      // Look for proper nouns and important terms (capitalized words)
-      const sentences = text.split(/[.!?]\s+/);
-      const firstSentence = sentences[0] || text.substring(0, 200);
+    // Extract potential headline and keywords
+    const extractSearchTerms = (text: string): { headline: string, keywords: string, entities: string } => {
+      // Get first sentence which is often the headline
+      const firstLine = text.split('\n')[0].replace(/^['"]|['"]$/g, '').trim();
       
-      // Extract capitalized words and location names
-      const capitalizedWords = text.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b/g) || [];
-      const uniqueCapitalized = [...new Set(capitalizedWords)].slice(0, 3);
+      // Extract proper nouns (capitalized words/phrases)
+      const properNouns = text.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b/g) || [];
+      const uniqueNouns = [...new Set(properNouns)].slice(0, 4).join(' ');
       
-      // Extract important keywords from first sentence
-      const words = firstSentence.toLowerCase().split(/\s+/);
-      const stopWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had', 'that', 'this', 'it'];
-      const keywords = words.filter(word => word.length > 4 && !stopWords.includes(word)).slice(0, 3);
+      // Extract important keywords
+      const words = text.toLowerCase().split(/\s+/);
+      const stopWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had', 'that', 'this', 'it', 'their'];
+      const keywords = words.filter(word => word.length > 5 && !stopWords.includes(word)).slice(0, 4).join(' ');
       
-      // Combine capitalized names with keywords
-      const searchTerms = [...uniqueCapitalized, ...keywords.map(w => w.charAt(0).toUpperCase() + w.slice(1))];
-      return searchTerms.slice(0, 5).join(' ');
+      return { headline: firstLine, keywords, entities: uniqueNouns };
     };
 
-    const searchQuery = extractKeywords(newsContent);
-    console.log('Searching NewsAPI with query:', searchQuery);
+    const searchTerms = extractSearchTerms(newsContent);
+    console.log('Search terms:', searchTerms);
 
-    // Search BBC News separately
-    const bbcSearchUrl = `https://newsapi.org/v2/everything?q=${encodeURIComponent(searchQuery)}&sources=bbc-news&sortBy=relevancy&pageSize=10&apiKey=${NEWSAPI_KEY}`;
-    
-    // Search CNN separately
-    const cnnSearchUrl = `https://newsapi.org/v2/everything?q=${encodeURIComponent(searchQuery)}&sources=cnn&sortBy=relevancy&pageSize=10&apiKey=${NEWSAPI_KEY}`;
-    
-    console.log('Fetching from BBC and CNN...');
-    const [bbcResponse, cnnResponse] = await Promise.all([
-      fetch(bbcSearchUrl),
-      fetch(cnnSearchUrl)
+    // Try multiple search strategies for better results
+    const tryBBCSearch = async (): Promise<NewsArticle[]> => {
+      const queries = [
+        searchTerms.headline.substring(0, 100), // Try headline first
+        searchTerms.entities, // Try proper nouns
+        searchTerms.keywords // Try keywords as fallback
+      ].filter(q => q && q.length > 5);
+
+      for (const query of queries) {
+        console.log('Trying BBC search with:', query);
+        const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&sources=bbc-news&sortBy=relevancy&pageSize=10&language=en&apiKey=${NEWSAPI_KEY}`;
+        
+        try {
+          const response = await fetch(url);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.articles && data.articles.length > 0) {
+              console.log('BBC search successful with query:', query, 'Found:', data.articles.length);
+              return data.articles;
+            }
+          }
+        } catch (error) {
+          console.error('BBC search error:', error);
+        }
+      }
+      
+      return [];
+    };
+
+    const tryCNNSearch = async (): Promise<NewsArticle[]> => {
+      const queries = [
+        searchTerms.headline.substring(0, 100),
+        searchTerms.entities,
+        searchTerms.keywords
+      ].filter(q => q && q.length > 5);
+
+      for (const query of queries) {
+        console.log('Trying CNN search with:', query);
+        const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&sources=cnn&sortBy=relevancy&pageSize=10&language=en&apiKey=${NEWSAPI_KEY}`;
+        
+        try {
+          const response = await fetch(url);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.articles && data.articles.length > 0) {
+              console.log('CNN search successful with query:', query, 'Found:', data.articles.length);
+              return data.articles;
+            }
+          }
+        } catch (error) {
+          console.error('CNN search error:', error);
+        }
+      }
+      
+      return [];
+    };
+
+    console.log('Fetching from BBC and CNN with multiple strategies...');
+    const [bbcArticles, cnnArticles] = await Promise.all([
+      tryBBCSearch(),
+      tryCNNSearch()
     ]);
-
-    if (!bbcResponse.ok && !cnnResponse.ok) {
-      const bbcError = await bbcResponse.text();
-      const cnnError = await cnnResponse.text();
-      console.error('NewsAPI errors - BBC:', bbcError, 'CNN:', cnnError);
-      throw new Error('Failed to fetch from both BBC and CNN');
-    }
-
-    const bbcData = bbcResponse.ok ? await bbcResponse.json() : { articles: [] };
-    const cnnData = cnnResponse.ok ? await cnnResponse.json() : { articles: [] };
     
-    const articles: NewsArticle[] = [...(bbcData.articles || []), ...(cnnData.articles || [])];
+    const articles: NewsArticle[] = [...bbcArticles, ...cnnArticles];
     
-    console.log('Found BBC articles:', bbcData.articles?.length || 0);
-    console.log('Found CNN articles:', cnnData.articles?.length || 0);
+    console.log('Total BBC articles found:', bbcArticles.length);
+    console.log('Total CNN articles found:', cnnArticles.length);
 
     // Create AI prompt with real articles
     const articlesContext = articles.map((article, idx) => 
