@@ -8,6 +8,16 @@ interface VerifyNewsRequest {
   sourceUrl?: string;
 }
 
+interface NewsArticle {
+  source: { id: string | null; name: string };
+  author: string | null;
+  title: string;
+  description: string;
+  url: string;
+  publishedAt: string;
+  content: string;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -28,36 +38,79 @@ Deno.serve(async (req) => {
     }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const NEWSAPI_KEY = Deno.env.get('NEWSAPI_KEY');
+    
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY not configured');
     }
+    if (!NEWSAPI_KEY) {
+      throw new Error('NEWSAPI_KEY not configured');
+    }
 
-    // Create AI prompt to verify news
-    const prompt = `You are a news verification assistant. Analyze the following news content and determine if it appears to be from legitimate news sources like BBC, CNN, Reuters, Associated Press, or other reputable outlets.
+    // Extract key terms from the news content for searching
+    const extractKeywords = (text: string): string => {
+      const words = text.toLowerCase().split(/\s+/);
+      const stopWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had'];
+      const keywords = words.filter(word => word.length > 3 && !stopWords.includes(word));
+      return keywords.slice(0, 5).join(' ');
+    };
 
-News Content:
+    const searchQuery = extractKeywords(newsContent);
+    console.log('Searching NewsAPI with query:', searchQuery);
+
+    // Fetch real news articles from NewsAPI
+    const searchUrl = `https://newsapi.org/v2/everything?q=${encodeURIComponent(searchQuery)}&sources=bbc-news,cnn&sortBy=relevancy&pageSize=10&apiKey=${NEWSAPI_KEY}`;
+    
+    const newsResponse = await fetch(searchUrl);
+    if (!newsResponse.ok) {
+      const errorText = await newsResponse.text();
+      console.error('NewsAPI error:', errorText);
+      throw new Error(`NewsAPI returned ${newsResponse.status}`);
+    }
+
+    const newsData = await newsResponse.json();
+    const articles: NewsArticle[] = newsData.articles || [];
+    
+    console.log('Found articles:', articles.length);
+
+    // Create AI prompt with real articles
+    const articlesContext = articles.map((article, idx) => 
+      `Article ${idx + 1} (${article.source.name}):
+Title: ${article.title}
+Description: ${article.description || 'N/A'}
+Content: ${article.content || 'N/A'}
+Published: ${article.publishedAt}
+URL: ${article.url}
+`).join('\n---\n');
+
+    const prompt = `You are a news verification assistant. Compare the user's news content against real articles from BBC and CNN.
+
+User's News Content:
 ${newsContent}
 
-${sourceUrl ? `Source URL: ${sourceUrl}\n` : ''}
+${sourceUrl ? `User's Source URL: ${sourceUrl}\n` : ''}
 
-Please analyze and provide:
-1. Whether this appears on BBC (true/false and similarity score 0-100)
-2. Whether this appears on CNN (true/false and similarity score 0-100)
-3. Overall legitimacy assessment (0-100)
-4. Any matching article titles/headlines found
+Real Articles from BBC and CNN:
+${articlesContext}
+
+Analyze and provide:
+1. Whether this content matches any BBC articles (true/false and similarity score 0-100)
+2. Whether this content matches any CNN articles (true/false and similarity score 0-100)
+3. Overall legitimacy assessment (0-100) - higher if content matches real articles
+4. Matching article titles/headlines found
 5. Key topics and locations mentioned
 6. Date references found
-7. Credibility indicators (neutral language, factual tone, etc.)
-8. Any red flags (sensationalism, bias, inconsistencies)
+7. Credibility indicators (neutral language, factual tone, matches real articles)
+8. Red flags (contradicts real articles, sensationalism, misinformation)
 
 Respond in JSON format only:
 {
   "bbcVerified": boolean,
   "bbcSimilarity": number (0-100),
-  "bbcArticles": [{"title": string, "similarity": number}],
+  "bbcArticles": [{"title": string, "similarity": number, "url": string}],
   "cnnVerified": boolean,
   "cnnSimilarity": number (0-100),
-  "cnnArticles": [{"title": string, "similarity": number}],
+  "cnnArticles": [{"title": string, "similarity": number, "url": string}],
   "legitimacyScore": number (0-100),
   "topics": string[],
   "locations": string[],
