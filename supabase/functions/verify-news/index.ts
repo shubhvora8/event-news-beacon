@@ -136,44 +136,53 @@ Deno.serve(async (req) => {
     console.log('Total CNN articles found:', cnnArticles.length);
 
     // Create AI prompt with real articles
-    const articlesContext = articles.map((article, idx) => 
-      `Article ${idx + 1} (${article.source.name}):
+    const articlesContext = articles.length > 0 ? articles.map((article, idx) => 
+      `Article ${idx + 1} [${article.source.name}]:
 Title: ${article.title}
 Description: ${article.description || 'N/A'}
 Content: ${article.content || 'N/A'}
 Published: ${article.publishedAt}
 URL: ${article.url}
-`).join('\n---\n');
+`).join('\n---\n') : 'No matching articles found in NewsAPI.';
 
-    const prompt = `You are a news verification assistant. Compare the user's news content against real articles from BBC and CNN.
+    const bbcArticlesContext = articles.filter(a => a.source.name?.toLowerCase().includes('bbc'));
+    const cnnArticlesContext = articles.filter(a => a.source.name?.toLowerCase().includes('cnn'));
+
+    const prompt = `You are a news verification assistant. Compare the user's news content against real articles from BBC and CNN retrieved from NewsAPI.
 
 User's News Content:
 ${newsContent}
 
 ${sourceUrl ? `User's Source URL: ${sourceUrl}\n` : ''}
 
-Real Articles from BBC and CNN:
+Found Articles (${articles.length} total):
+- BBC Articles Found: ${bbcArticlesContext.length}
+- CNN Articles Found: ${cnnArticlesContext.length}
+
 ${articlesContext}
 
-Analyze and provide:
-1. Whether this content matches any BBC articles (true/false and similarity score 0-100)
-2. Whether this content matches any CNN articles (true/false and similarity score 0-100)
-3. Overall legitimacy assessment (0-100) - higher if content matches real articles
-4. Matching article titles/headlines found
-5. Key topics and locations mentioned
-6. Date references found
-7. Credibility indicators (neutral language, factual tone, matches real articles)
-8. Red flags (contradicts real articles, sensationalism, misinformation)
+IMPORTANT INSTRUCTIONS:
+1. If BBC articles were found (${bbcArticlesContext.length} articles), carefully compare the user's content with these BBC articles:
+   - Look for matching headlines, topics, events, people, places, and dates
+   - Even if wording differs, check if the core facts and story are the same
+   - If there's substantial overlap (>70% similar story/facts), mark bbcVerified as TRUE
+   - Calculate similarity score based on how much content overlaps
+
+2. If CNN articles were found (${cnnArticlesContext.length} articles), do the same comparison for CNN
+
+3. If NO articles were found from a source, mark that source as verified=FALSE with 0 similarity
+
+4. Be generous with matching - news articles are often reworded but cover the same events
 
 Respond in JSON format only:
 {
-  "bbcVerified": boolean,
-  "bbcSimilarity": number (0-100),
+  "bbcVerified": boolean (true if BBC articles match user content),
+  "bbcSimilarity": number (0-100, based on content overlap),
   "bbcArticles": [{"title": string, "similarity": number, "url": string}],
-  "cnnVerified": boolean,
-  "cnnSimilarity": number (0-100),
+  "cnnVerified": boolean (true if CNN articles match user content),
+  "cnnSimilarity": number (0-100, based on content overlap),
   "cnnArticles": [{"title": string, "similarity": number, "url": string}],
-  "legitimacyScore": number (0-100),
+  "legitimacyScore": number (0-100, higher if content matches real articles),
   "topics": string[],
   "locations": string[],
   "dates": string[],
