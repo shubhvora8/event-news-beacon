@@ -51,6 +51,16 @@ export interface LegitimacyCheck {
     similarity: number;
     matchingArticles: NewsSource[];
   };
+  abcVerification: {
+    found: boolean;
+    similarity: number;
+    matchingArticles: NewsSource[];
+  };
+  guardianVerification: {
+    found: boolean;
+    similarity: number;
+    matchingArticles: NewsSource[];
+  };
   crossReference: {
     score: number;
     details: string;

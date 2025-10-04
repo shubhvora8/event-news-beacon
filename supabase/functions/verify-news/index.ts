@@ -124,16 +124,76 @@ Deno.serve(async (req) => {
       return [];
     };
 
-    console.log('Fetching from BBC and CNN with multiple strategies...');
-    const [bbcArticles, cnnArticles] = await Promise.all([
+    const tryABCSearch = async (): Promise<NewsArticle[]> => {
+      const queries = [
+        searchTerms.headline.substring(0, 100),
+        searchTerms.entities,
+        searchTerms.keywords
+      ].filter(q => q && q.length > 5);
+
+      for (const query of queries) {
+        console.log('Trying ABC News search with:', query);
+        const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&sources=abc-news&sortBy=relevancy&pageSize=10&language=en&apiKey=${NEWSAPI_KEY}`;
+        
+        try {
+          const response = await fetch(url);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.articles && data.articles.length > 0) {
+              console.log('ABC News search successful with query:', query, 'Found:', data.articles.length);
+              return data.articles;
+            }
+          }
+        } catch (error) {
+          console.error('ABC News search error:', error);
+        }
+      }
+      
+      return [];
+    };
+
+    const tryGuardianSearch = async (): Promise<NewsArticle[]> => {
+      const queries = [
+        searchTerms.headline.substring(0, 100),
+        searchTerms.entities,
+        searchTerms.keywords
+      ].filter(q => q && q.length > 5);
+
+      for (const query of queries) {
+        console.log('Trying Guardian search with:', query);
+        const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&sources=the-guardian-uk&sortBy=relevancy&pageSize=10&language=en&apiKey=${NEWSAPI_KEY}`;
+        
+        try {
+          const response = await fetch(url);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.articles && data.articles.length > 0) {
+              console.log('Guardian search successful with query:', query, 'Found:', data.articles.length);
+              return data.articles;
+            }
+          }
+        } catch (error) {
+          console.error('Guardian search error:', error);
+        }
+      }
+      
+      return [];
+    };
+
+    console.log('Fetching from BBC, CNN, ABC News, and Guardian with multiple strategies...');
+    const [bbcArticles, cnnArticles, abcArticles, guardianArticles] = await Promise.all([
       tryBBCSearch(),
-      tryCNNSearch()
+      tryCNNSearch(),
+      tryABCSearch(),
+      tryGuardianSearch()
     ]);
     
-    const articles: NewsArticle[] = [...bbcArticles, ...cnnArticles];
+    const articles: NewsArticle[] = [...bbcArticles, ...cnnArticles, ...abcArticles, ...guardianArticles];
     
     console.log('Total BBC articles found:', bbcArticles.length);
     console.log('Total CNN articles found:', cnnArticles.length);
+    console.log('Total ABC News articles found:', abcArticles.length);
+    console.log('Total Guardian articles found:', guardianArticles.length);
 
     // Create AI prompt with real articles
     const articlesContext = articles.length > 0 ? articles.map((article, idx) => 
@@ -147,8 +207,10 @@ URL: ${article.url}
 
     const bbcArticlesContext = articles.filter(a => a.source.name?.toLowerCase().includes('bbc'));
     const cnnArticlesContext = articles.filter(a => a.source.name?.toLowerCase().includes('cnn'));
+    const abcArticlesContext = articles.filter(a => a.source.name?.toLowerCase().includes('abc'));
+    const guardianArticlesContext = articles.filter(a => a.source.name?.toLowerCase().includes('guardian'));
 
-    const prompt = `You are a news verification assistant. Compare the user's news content against real articles from BBC and CNN retrieved from NewsAPI.
+    const prompt = `You are a news verification assistant. Compare the user's news content against real articles from BBC, CNN, ABC News, and The Guardian retrieved from NewsAPI.
 
 User's News Content:
 ${newsContent}
@@ -158,21 +220,21 @@ ${sourceUrl ? `User's Source URL: ${sourceUrl}\n` : ''}
 Found Articles (${articles.length} total):
 - BBC Articles Found: ${bbcArticlesContext.length}
 - CNN Articles Found: ${cnnArticlesContext.length}
+- ABC News Articles Found: ${abcArticlesContext.length}
+- Guardian Articles Found: ${guardianArticlesContext.length}
 
 ${articlesContext}
 
 IMPORTANT INSTRUCTIONS:
-1. If BBC articles were found (${bbcArticlesContext.length} articles), carefully compare the user's content with these BBC articles:
+1. For each source where articles were found, carefully compare the user's content with those articles:
    - Look for matching headlines, topics, events, people, places, and dates
    - Even if wording differs, check if the core facts and story are the same
-   - If there's substantial overlap (>70% similar story/facts), mark bbcVerified as TRUE
+   - If there's substantial overlap (>70% similar story/facts), mark that source as verified TRUE
    - Calculate similarity score based on how much content overlaps
 
-2. If CNN articles were found (${cnnArticlesContext.length} articles), do the same comparison for CNN
+2. If NO articles were found from a source, mark that source as verified=FALSE with 0 similarity
 
-3. If NO articles were found from a source, mark that source as verified=FALSE with 0 similarity
-
-4. Be generous with matching - news articles are often reworded but cover the same events
+3. Be generous with matching - news articles are often reworded but cover the same events
 
 Respond in JSON format only:
 {
@@ -182,6 +244,12 @@ Respond in JSON format only:
   "cnnVerified": boolean (true if CNN articles match user content),
   "cnnSimilarity": number (0-100, based on content overlap),
   "cnnArticles": [{"title": string, "similarity": number, "url": string}],
+  "abcVerified": boolean (true if ABC News articles match user content),
+  "abcSimilarity": number (0-100, based on content overlap),
+  "abcArticles": [{"title": string, "similarity": number, "url": string}],
+  "guardianVerified": boolean (true if Guardian articles match user content),
+  "guardianSimilarity": number (0-100, based on content overlap),
+  "guardianArticles": [{"title": string, "similarity": number, "url": string}],
   "legitimacyScore": number (0-100, higher if content matches real articles),
   "topics": string[],
   "locations": string[],

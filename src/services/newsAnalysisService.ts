@@ -81,24 +81,54 @@ export class NewsAnalysisService {
         excerpt: newsContent.substring(0, 150)
       }))
     };
+
+    const abcMatch = {
+      found: aiVerification.abcVerified || false,
+      similarity: aiVerification.abcSimilarity || 0,
+      matchingArticles: (aiVerification.abcArticles || []).map((article: any) => ({
+        title: article.title || 'Related Article',
+        url: sourceUrl || 'https://abcnews.go.com',
+        publishDate: new Date().toISOString().split('T')[0],
+        similarity: article.similarity || 0,
+        excerpt: newsContent.substring(0, 150)
+      }))
+    };
+
+    const guardianMatch = {
+      found: aiVerification.guardianVerified || false,
+      similarity: aiVerification.guardianSimilarity || 0,
+      matchingArticles: (aiVerification.guardianArticles || []).map((article: any) => ({
+        title: article.title || 'Related Article',
+        url: sourceUrl || 'https://www.theguardian.com',
+        publishDate: new Date().toISOString().split('T')[0],
+        similarity: article.similarity || 0,
+        excerpt: newsContent.substring(0, 150)
+      }))
+    };
     
     const isTrustedSource = sourceUrl && (
       sourceUrl.toLowerCase().includes('bbc.com') ||
-      sourceUrl.toLowerCase().includes('cnn.com')
+      sourceUrl.toLowerCase().includes('cnn.com') ||
+      sourceUrl.toLowerCase().includes('abcnews.go.com') ||
+      sourceUrl.toLowerCase().includes('theguardian.com')
     );
     
     const legitimacy = {
       bbcVerification: bbcMatch,
       cnnVerification: cnnMatch,
+      abcVerification: abcMatch,
+      guardianVerification: guardianMatch,
       crossReference: {
-        score: (bbcMatch.found && cnnMatch.found) ? 95 : 
-               (isTrustedSource && (bbcMatch.found || cnnMatch.found)) ? 90 :
-               (bbcMatch.found || cnnMatch.found) ? 85 : 20,
-        details: (bbcMatch.found && cnnMatch.found) 
+        score: (bbcMatch.found && cnnMatch.found && abcMatch.found && guardianMatch.found) ? 98 :
+               (bbcMatch.found && cnnMatch.found && (abcMatch.found || guardianMatch.found)) ? 95 :
+               (bbcMatch.found && cnnMatch.found) ? 92 : 
+               (isTrustedSource && (bbcMatch.found || cnnMatch.found || abcMatch.found || guardianMatch.found)) ? 90 :
+               (bbcMatch.found || cnnMatch.found || abcMatch.found || guardianMatch.found) ? 85 : 20,
+        details: (bbcMatch.found && cnnMatch.found && (abcMatch.found || guardianMatch.found))
           ? "Content corroborated by multiple authoritative news sources."
-          : (isTrustedSource && (bbcMatch.found || cnnMatch.found))
+          : (isTrustedSource && (bbcMatch.found || cnnMatch.found || abcMatch.found || guardianMatch.found))
           ? "Content verified by a trusted authoritative news source."
-          : (bbcMatch.found || cnnMatch.found)
+          : (bbcMatch.found || cnnMatch.found || abcMatch.found || guardianMatch.found)
           ? "Content matches patterns found in major news outlets."
           : "No verification found in major news databases."
       },
@@ -106,23 +136,34 @@ export class NewsAnalysisService {
     };
     
     // Calculate legitimacy score - prioritize keyword matches
-    if (isTrustedSource && (bbcMatch.found || cnnMatch.found)) {
+    const foundCount = [bbcMatch.found, cnnMatch.found, abcMatch.found, guardianMatch.found].filter(Boolean).length;
+    if (isTrustedSource && foundCount > 0) {
       // Trusted source with URL gets highest score
       legitimacy.overallScore = Math.round((
         (bbcMatch.found ? bbcMatch.similarity : 0) + 
         (cnnMatch.found ? cnnMatch.similarity : 0) + 
+        (abcMatch.found ? abcMatch.similarity : 0) + 
+        (guardianMatch.found ? guardianMatch.similarity : 0) + 
         legitimacy.crossReference.score
-      ) / 2);
-    } else if (bbcMatch.found && cnnMatch.found) {
-      // Both sources match keywords - high score (weighted toward matches)
+      ) / (foundCount + 1));
+    } else if (foundCount >= 2) {
+      // Multiple sources match keywords - high score (weighted toward matches)
+      const totalSimilarity = 
+        (bbcMatch.found ? bbcMatch.similarity : 0) + 
+        (cnnMatch.found ? cnnMatch.similarity : 0) + 
+        (abcMatch.found ? abcMatch.similarity : 0) + 
+        (guardianMatch.found ? guardianMatch.similarity : 0);
       legitimacy.overallScore = Math.round((
-        bbcMatch.similarity * 0.4 + 
-        cnnMatch.similarity * 0.4 + 
-        legitimacy.crossReference.score * 0.2
+        (totalSimilarity / foundCount) * 0.7 + 
+        legitimacy.crossReference.score * 0.3
       ));
-    } else if (bbcMatch.found || cnnMatch.found) {
+    } else if (foundCount === 1) {
       // One source matches keywords - good score
-      const matchSimilarity = bbcMatch.found ? bbcMatch.similarity : cnnMatch.similarity;
+      const matchSimilarity = 
+        bbcMatch.found ? bbcMatch.similarity : 
+        cnnMatch.found ? cnnMatch.similarity :
+        abcMatch.found ? abcMatch.similarity :
+        guardianMatch.similarity;
       legitimacy.overallScore = Math.round((
         matchSimilarity * 0.6 + 
         legitimacy.crossReference.score * 0.4
@@ -136,8 +177,12 @@ export class NewsAnalysisService {
       overallScore: legitimacy.overallScore,
       bbcFound: bbcMatch.found,
       cnnFound: cnnMatch.found,
+      abcFound: abcMatch.found,
+      guardianFound: guardianMatch.found,
       bbcSim: bbcMatch.similarity,
       cnnSim: cnnMatch.similarity,
+      abcSim: abcMatch.similarity,
+      guardianSim: guardianMatch.similarity,
       crossRef: legitimacy.crossReference.score
     });
 
@@ -297,7 +342,7 @@ export class NewsAnalysisService {
   }
 
   private static evaluateSourceCredibility(url: string): number {
-    const trustedDomains = ['bbc.com', 'cnn.com', 'reuters.com', 'ap.org', 'npr.org'];
+    const trustedDomains = ['bbc.com', 'cnn.com', 'reuters.com', 'ap.org', 'npr.org', 'abcnews.go.com', 'theguardian.com'];
     const questionableDomains = ['fake-news.com', 'clickbait.net', 'unverified.info'];
     
     if (trustedDomains.some(domain => url.includes(domain))) return 90;
@@ -306,7 +351,7 @@ export class NewsAnalysisService {
   }
 
   private static getSourceReputation(url: string): string {
-    const trustedDomains = ['bbc.com', 'cnn.com', 'reuters.com', 'ap.org'];
+    const trustedDomains = ['bbc.com', 'cnn.com', 'reuters.com', 'ap.org', 'abcnews.go.com', 'theguardian.com'];
     
     if (trustedDomains.some(domain => url.includes(domain))) {
       return "Source is from a well-established, reputable news organization with strong editorial standards.";
