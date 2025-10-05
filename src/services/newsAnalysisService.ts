@@ -217,11 +217,11 @@ export class NewsAnalysisService {
       trustworthiness.sourceCredibility.score
     ) / 3);
 
-    // Calculate overall score and verdict (weighted: Legitimacy 50%, Relatability 30%, Trustworthiness 20%)
+    // Calculate overall score and verdict (weighted: Legitimacy 50%, Relatability 35%, Trustworthiness 15%)
     const overallScore = Math.round(
       (legitimacy.overallScore * 0.50) + 
-      (relatability.overallScore * 0.30) + 
-      (trustworthiness.overallScore * 0.20)
+      (relatability.overallScore * 0.35) + 
+      (trustworthiness.overallScore * 0.15)
     );
     
     let overallVerdict: 'VERIFIED' | 'SUSPICIOUS' | 'FAKE' | 'NEEDS_REVIEW';
